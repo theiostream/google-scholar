@@ -4,8 +4,9 @@ let scholar = (function () {
   let request = require('request')
   let cheerio = require('cheerio')
   let striptags = require('striptags')
+  let entities = require('html-entities').XmlEntities
 
-  const GOOGLE_SCHOLAR_URL = 'https://scholar.google.com/scholar?q='
+  const GOOGLE_SCHOLAR_URL = 'https://scholar.google.com/scholar?hl=en&q='
   const GOOGLE_SCHOLAR_URL_PREFIX = 'https://scholar.google.com'
 
   const ELLIPSIS_HTML_ENTITY = '&#x2026;'
@@ -45,6 +46,7 @@ let scholar = (function () {
           let etAl = false
           let etAlBegin = false
           let authors = []
+          let information = ''
           let description = $(r).find('.gs_rs').text()
           let footerLinks = $(r).find('.gs_ri .gs_fl a')
           let citedCount = 0
@@ -76,7 +78,8 @@ let scholar = (function () {
             }
           }
           if (authorNamesHTMLString) {
-            let cleanString = authorNamesHTMLString.substr(0, authorNamesHTMLString.indexOf(' - '))
+            let cleanString = authorNamesHTMLString.split(' - ')[0]
+            information = authorNamesHTMLString.substring(authorNamesHTMLString.indexOf(' - ') + 3)
             if (cleanString.substr(cleanString.length - ELLIPSIS_HTML_ENTITY.length) === ELLIPSIS_HTML_ENTITY) {
               etAl = true
               cleanString = cleanString.substr(0, cleanString.length - ELLIPSIS_HTML_ENTITY.length)
@@ -99,9 +102,9 @@ let scholar = (function () {
                 url: ''
               }
               if (tmp('a').length === 0) {
-                authorObj.name = striptags(name)
+                authorObj.name = entities.decode(striptags(name))
               } else {
-                authorObj.name = tmp('a').text()
+                authorObj.name = entities.decode(tmp('a').text())
                 authorObj.url = GOOGLE_SCHOLAR_URL_PREFIX + tmp('a').attr('href')
               }
               return authorObj
@@ -109,13 +112,14 @@ let scholar = (function () {
           }
 
           processedResults.push({
-            title: title,
+            title: entities.decode(title),
             url: url,
             authors: authors,
-            description: description,
-            citedCount: citedCount,
+            description: entities.decode(description),
+            citedCount: parseInt(citedCount),
             citedUrl: citedUrl,
-            relatedUrl: relatedUrl
+            relatedUrl: relatedUrl,
+            information: entities.decode(information)
           })
         })
 
@@ -138,13 +142,23 @@ let scholar = (function () {
           prevUrl: prevUrl,
           next: function () {
             let p = new Promise(function (resolve, reject) {
-              request(nextUrl, scholarResultsCallback(resolve, reject))
+              request({
+                url: nextUrl,
+                headers: {
+                  'User-Agent': 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36'
+                }
+              }, scholarResultsCallback(resolve, reject))
             })
             return p
           },
           previous: function () {
             let p = new Promise(function (resolve, reject) {
-              request(prevUrl, scholarResultsCallback(resolve, reject))
+              request({
+                url: prevUrl,
+                headers: {
+                  'User-Agent': 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36'
+                }
+              }, scholarResultsCallback(resolve, reject))
             })
             return p
           }
