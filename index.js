@@ -153,9 +153,19 @@ let scholar = (function () {
     }
   }
 
-  function search (query) {
+  function search (object) {
     let p = new Promise(function (resolve, reject) {
-      request(encodeURI(GOOGLE_SCHOLAR_URL + query), scholarResultsCallback(resolve, reject))
+      let scholarUri = GOOGLE_SCHOLAR_URL + object.query + ' ' + (object.options || '')
+      if (object.language) scholarUri += '&lr=lang_' + object.language
+      if (object.hasOwnProperty('include_citations')) scholarUri += '&as_vis=' + (object.include_citations ? '0' : '1')
+      if (object.year_range) scholarUri += '&as_ylo=' + object.year_range[0] + '&as_yhi=' + object.year_range[1]
+
+      request({
+        url: encodeURI(scholarUri),
+        headers: {
+          'User-Agent': 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36'
+        }
+      }, scholarResultsCallback(resolve, reject))
     })
     return p
   }
